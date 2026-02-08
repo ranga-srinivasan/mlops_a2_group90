@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+
+# Environments
+.venv/
+env/
+.env/
+
+# MLflow
+mlruns/
+
+# Data (handled by DVC)
+data/raw/
+data/processed/
+
+# OS
+.DS_Store
+Thumbs.db
+
