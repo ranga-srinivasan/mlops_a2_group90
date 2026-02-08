@@ -1,0 +1,27 @@
+data:
+  img_size: 224
+  channels: 3
+  seed: 42
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+
+local:
+  batch_size: 16
+  epochs: 3
+  learning_rate: 0.001
+  num_workers: 2
+  use_augmentation: false
+
+osha:
+  batch_size: 64
+  epochs: 10
+  learning_rate: 0.0003
+  num_workers: 4
+  use_augmentation: true
+
+model:
+  architecture: mobilenet_v2
+  pretrained: true
+  freeze_backbone: true
+  num_classes: 2
