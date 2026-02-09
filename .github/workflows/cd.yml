@@ -1,0 +1,53 @@
+name: CD Pipeline - Deploy & Smoke Test
+
+on:
+  push:
+    branches: [ "main" ]
+
+# Required to pull image from GHCR
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Log in to GitHub Container Registry
+      run: |
+        echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Pull inference image from GHCR
+      run: |
+        docker pull ghcr.io/${{ github.repository }}:latest
+
+    - name: Start inference container
+      run: |
+        docker run -d \
+          -p 8000:8000 \
+          -e MODEL_PATH=/models/model_local.pt \
+          -v ${{ github.workspace }}/models:/models \
+          --name cats-dogs-infer \
+          ghcr.io/${{ github.repository }}:latest
+
+        # Give the service time to start
+        sleep 10
+
+    - name: Smoke test - health endpoint
+      run: |
+        curl --fail http://localhost:8000/health
+
+    - name: Smoke test - prediction endpoint
+      run: |
+        curl --fail -X POST \
+          http://localhost:8000/predict \
+          -F "file=@tests/assets/sample_cat.jpg"
+
+    - name: Stop container
+      if: always()
+      run: |
+        docker rm -f cats-dogs-infer
