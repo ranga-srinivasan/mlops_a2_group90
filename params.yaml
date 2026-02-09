@@ -1,3 +1,6 @@
+# ======================================================
+# Data configuration
+# ======================================================
 data:
   img_size: 224
   channels: 3
@@ -6,13 +9,23 @@ data:
   val_split: 0.1
   test_split: 0.1
 
+
+# ======================================================
+# Training configuration – Local (Windows)
+# Used for M1 model development & MLflow tracking
+# ======================================================
 local:
   batch_size: 16
-  epochs: 3
+  epochs: 10          # Used for FINAL model
   learning_rate: 0.001
   num_workers: 2
-  use_augmentation: false
+  use_augmentation: true
 
+
+# ======================================================
+# Training configuration – OSHA (Linux VM)
+# Not used for M1 training, kept for completeness
+# ======================================================
 osha:
   batch_size: 64
   epochs: 10
@@ -20,8 +33,21 @@ osha:
   num_workers: 4
   use_augmentation: true
 
+
+# ======================================================
+# Baseline configuration (explicit for grading)
+# ======================================================
+baseline:
+  epochs: 3            # Short run for baseline comparison
+  freeze_backbone: true
+  use_augmentation: false
+
+
+# ======================================================
+# Model configuration
+# ======================================================
 model:
   architecture: mobilenet_v2
   pretrained: true
-  freeze_backbone: true
+  freeze_backbone: false   # Overridden in baseline run
   num_classes: 2
