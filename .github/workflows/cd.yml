@@ -1,16 +1,19 @@
 name: CD Pipeline - Deploy & Smoke Test
 
 on:
-  push:
-    branches: [ "main" ]
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types:
+      - completed
 
-# Required to pull image from GHCR
 permissions:
   contents: read
   packages: read
 
 jobs:
   deploy-and-test:
+    # Run CD only if CI succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -34,7 +37,6 @@ jobs:
           --name cats-dogs-infer \
           ghcr.io/${{ github.repository }}:latest
 
-        # Give the service time to start
         sleep 10
 
     - name: Smoke test - health endpoint
