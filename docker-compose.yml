@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  inference:
+    image: catsdogs-infer:latest
+    container_name: catsdogs-inference
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_PATH=/app/models/model_local.pt
+    volumes:
+      - ./models:/app/models:ro
+    restart: unless-stopped
+
