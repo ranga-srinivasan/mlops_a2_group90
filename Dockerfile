@@ -26,7 +26,6 @@ RUN pip install --no-cache-dir -r requirements.inference.txt
 # Copy application code
 # -----------------------------
 COPY src/ src/
-COPY models/ models/
 
 # -----------------------------
 # Expose port
