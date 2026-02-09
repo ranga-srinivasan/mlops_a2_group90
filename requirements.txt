@@ -1,3 +1,4 @@
+pytest
 adlfs==2025.8.0
 aiobotocore==3.1.2
 aiohappyeyeballs==2.6.1
