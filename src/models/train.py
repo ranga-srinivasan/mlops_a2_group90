@@ -87,7 +87,7 @@ def get_dataloaders(batch_size, num_workers, augment: bool):
 
 
 def build_model(num_classes, freeze_backbone: bool):
-    model = models.mobilenet_v2(pretrained=True)
+    model = models.mobilenet_v2(pretrained=False)
 
     if freeze_backbone:
         for param in model.features.parameters():
@@ -171,6 +171,7 @@ def run_training(
             lr=train_params["learning_rate"]
         )
 
+        print("Starting training loop...")
         for epoch in range(train_params["epochs"]):
             train_loss = train_one_epoch(
                 model, loaders["train"], criterion, optimizer

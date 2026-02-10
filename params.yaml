@@ -16,9 +16,9 @@ data:
 # ======================================================
 local:
   batch_size: 16
-  epochs: 10          # Used for FINAL model
+  epochs: 1          # Used for FINAL model
   learning_rate: 0.001
-  num_workers: 2
+  num_workers: 0
   use_augmentation: true
 
 
@@ -27,8 +27,8 @@ local:
 # Not used for M1 training, kept for completeness
 # ======================================================
 osha:
-  batch_size: 64
-  epochs: 10
+  batch_size: 32
+  epochs: 1
   learning_rate: 0.0003
   num_workers: 4
   use_augmentation: true
