@@ -22,27 +22,29 @@ MODEL_PATH = Path("models/model_local.pt")
 # Device selection:
 # - CUDA if available (local GPU experimentation)
 # - CPU otherwise (Linux VM, Docker, CI/CD)
-#
-# This makes the code portable across environments without changes.
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Class labels must match the training-time label order exactly.
-# Any mismatch here would silently corrupt predictions.
 CLASS_NAMES = ["cat", "dog"]
 
 
 # ======================================================
 # Model loader
 # ======================================================
-def load_model():
+def load_model(model_path: str | Path = MODEL_PATH):
     """
     Loads the trained MobileNetV2 model for inference.
+
+    Args:
+        model_path (str | Path): Path to the trained model weights.
 
     Key design points:
     - Architecture definition must exactly match training
     - Weights are loaded explicitly from disk
     - Model is set to eval() mode for inference
     """
+
+    model_path = Path(model_path)
 
     # Instantiate MobileNetV2 architecture.
     # pretrained=False is intentional because:
@@ -51,10 +53,6 @@ def load_model():
     model = models.mobilenet_v2(pretrained=False)
 
     # Replace the final classification layer.
-    # MobileNetV2 classifier structure:
-    # classifier[1] is the final Linear layer.
-    #
-    # Output dimension must match the number of classes.
     model.classifier[1] = nn.Linear(
         model.classifier[1].in_features,
         len(CLASS_NAMES)
@@ -62,9 +60,8 @@ def load_model():
 
     # Load trained weights from disk.
     # map_location ensures compatibility across CPU/GPU environments.
-    model.load_state_dict(
-        torch.load(MODEL_PATH, map_location=DEVICE)
-    )
+    state_dict = torch.load(model_path, map_location=DEVICE)
+    model.load_state_dict(state_dict)
 
     # Move model to selected device (CPU/GPU)
     model.to(DEVICE)
@@ -80,17 +77,11 @@ def load_model():
 # ======================================================
 # Image preprocessing
 # ======================================================
-# Define inference-time preprocessing pipeline.
-#
 # IMPORTANT:
 # This must match the preprocessing used during training,
 # otherwise train–serve skew can degrade performance.
 transform = transforms.Compose([
-    # Resize input image to MobileNetV2 expected resolution
     transforms.Resize((224, 224)),
-
-    # Convert PIL Image → PyTorch tensor
-    # Output shape: [C, H, W], values in [0, 1]
     transforms.ToTensor(),
 ])
 
@@ -111,30 +102,19 @@ def predict_image(model, image: Image.Image):
     """
 
     # Ensure image has 3 channels (RGB).
-    # This guards against grayscale or RGBA inputs.
     image = image.convert("RGB")
 
-    # Apply preprocessing and add batch dimension:
-    # Shape: [1, C, H, W]
+    # Apply preprocessing and add batch dimension
     tensor = transform(image).unsqueeze(0).to(DEVICE)
 
-    # Disable gradient computation for inference:
-    # - reduces memory usage
-    # - improves performance
+    # Disable gradient computation for inference
     with torch.no_grad():
         outputs = model(tensor)
-
-        # Convert raw logits → probabilities
         probs = torch.softmax(outputs, dim=1).cpu().numpy()[0]
 
-    # Get predicted class index
     predicted_idx = probs.argmax()
-
-    # Map index → class label
     predicted_label = CLASS_NAMES[predicted_idx]
 
-    # Return structured, JSON-serializable output
-    # This format is API-friendly and easy to log.
     return {
         "label": predicted_label,
         "probabilities": {
