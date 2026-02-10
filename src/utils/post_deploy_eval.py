@@ -19,14 +19,14 @@ from pathlib import Path
 # URL of the deployed inference service
 API_URL = "http://localhost:8000/predict"
 
-# Path to test dataset (adjust if needed)
-# Expected structure:
-# data/test/
-# ├── cats/
-# └── dogs/
-TEST_DATA_DIR = Path("data/test")
+# Path to test/validation dataset
+# Matches your actual project structure
+# data/processed/val/
+# ├── cat/
+# └── dog/
+TEST_DATA_DIR = Path("data/processed/val")
 
-# Number of samples per class (keep small, rubric-friendly)
+# Number of samples per class (small, rubric-friendly)
 SAMPLES_PER_CLASS = 5
 
 
@@ -35,19 +35,23 @@ SAMPLES_PER_CLASS = 5
 # ======================================================
 def collect_samples():
     """
-    Collect a small, balanced set of test samples
+    Collect a small, balanced set of samples
     with known ground-truth labels.
     """
     samples = []
 
-    cat_images = list((TEST_DATA_DIR / "cats").glob("*"))[:SAMPLES_PER_CLASS]
-    dog_images = list((TEST_DATA_DIR / "dogs").glob("*"))[:SAMPLES_PER_CLASS]
+    cat_dir = TEST_DATA_DIR / "cat"
+    dog_dir = TEST_DATA_DIR / "dog"
 
-    for img_path in cat_images:
-        samples.append((img_path, "cat"))
+    if cat_dir.exists():
+        cat_images = list(cat_dir.glob("*"))[:SAMPLES_PER_CLASS]
+        for img_path in cat_images:
+            samples.append((img_path, "cat"))
 
-    for img_path in dog_images:
-        samples.append((img_path, "dog"))
+    if dog_dir.exists():
+        dog_images = list(dog_dir.glob("*"))[:SAMPLES_PER_CLASS]
+        for img_path in dog_images:
+            samples.append((img_path, "dog"))
 
     return samples
 
@@ -60,8 +64,8 @@ def main():
 
     if not samples:
         raise RuntimeError(
-            "No test images found. "
-            "Check TEST_DATA_DIR path and dataset structure."
+            "No evaluation images found. "
+            "Check TEST_DATA_DIR and dataset structure."
         )
 
     correct = 0
