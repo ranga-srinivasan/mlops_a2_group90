@@ -16,17 +16,14 @@ from pathlib import Path
 # Configuration
 # ======================================================
 
-# URL of the deployed inference service
 API_URL = "http://localhost:8000/predict"
 
-# Path to test/validation dataset
-# Matches your actual project structure
+# Matches your actual dataset structure
 # data/processed/val/
 # ├── cat/
 # └── dog/
 TEST_DATA_DIR = Path("data/processed/val")
 
-# Number of samples per class (small, rubric-friendly)
 SAMPLES_PER_CLASS = 5
 
 
@@ -77,7 +74,13 @@ def main():
         with open(img_path, "rb") as f:
             response = requests.post(
                 API_URL,
-                files={"file": f}
+                files={
+                    "file": (
+                        img_path.name,
+                        f,
+                        "image/jpeg",
+                    )
+                },
             )
 
         if response.status_code != 200:
