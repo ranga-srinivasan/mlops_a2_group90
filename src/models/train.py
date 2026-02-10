@@ -47,31 +47,23 @@ def load_params(env: str):
     return params[env], params["model"], params["data"]
 
 
-def get_dataloaders(batch_size, num_workers, augment: bool):
-    """
-    Build train/val/test dataloaders.
-
-    augment=True is used ONLY for training data
-    (baseline + final model comparison)
-    """
-
-    train_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.RandomHorizontalFlip() if augment else transforms.Lambda(lambda x: x),
-        transforms.RandomRotation(10) if augment else transforms.Lambda(lambda x: x),
-        transforms.ToTensor(),
-    ])
-
-    eval_transform = transforms.Compose([
+def get_dataloaders(batch_size, num_workers):
+    transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
     ])
 
-    datasets_map = {
-        "train": datasets.ImageFolder(DATA_DIR / "train", transform=train_transform),
-        "val": datasets.ImageFolder(DATA_DIR / "val", transform=eval_transform),
-        "test": datasets.ImageFolder(DATA_DIR / "test", transform=eval_transform),
-    }
+    datasets_map = {}
+    MAX_SAMPLES = 500  # Limit dataset for fast, reliable M1 training
+
+    for split in ["train", "val", "test"]:
+        dataset = datasets.ImageFolder(DATA_DIR / split, transform=transform)
+
+        if len(dataset) > MAX_SAMPLES:
+            dataset.samples = dataset.samples[:MAX_SAMPLES]
+            dataset.targets = dataset.targets[:MAX_SAMPLES]
+
+        datasets_map[split] = dataset
 
     loaders = {
         split: DataLoader(
