@@ -26,6 +26,9 @@ import os
 # and can later be shipped to centralized logging tools.
 import logging
 
+# time is used for inference latency measurement (M5 requirement)
+import time
+
 # Project-specific inference utilities:
 # - load_model: loads the trained PyTorch model from disk
 # - predict_image: handles preprocessing, inference, and postprocessing
@@ -48,6 +51,14 @@ logging.basicConfig(
 # Using __name__ enables log filtering per module
 # as the application scales.
 logger = logging.getLogger(__name__)
+
+
+# ======================================================
+# Basic monitoring metrics (M5 requirement)
+# ======================================================
+# Simple in-app counters are sufficient for this assignment.
+# These values are emitted via logs and captured by Docker/CI.
+REQUEST_COUNT = 0
 
 
 # ======================================================
@@ -136,23 +147,22 @@ def predict(file: UploadFile = File(...)):
     Returns:
     - predicted class label
     - class probabilities
-
-    All failure modes are handled explicitly
-    to avoid returning generic 500 errors.
+    - inference latency (ms)
     """
 
+    global REQUEST_COUNT
+    REQUEST_COUNT += 1
+
     # If the model is not loaded, return a clear service-level error.
-    # HTTP 503 (Service Unavailable) is appropriate:
-    # the client request is valid, but the service is not ready.
     if model is None:
         logger.warning("Prediction requested but model not loaded (CI/CD mode).")
         return {
             "label": "unavailable",
-            "probabilities": {}
+            "probabilities": {},
+            "latency_ms": None
         }
 
     # Validate that the uploaded file is an image.
-    # This prevents unnecessary processing and malformed requests.
     if not file.content_type.startswith("image/"):
         raise HTTPException(
             status_code=400,
@@ -160,16 +170,16 @@ def predict(file: UploadFile = File(...)):
         )
 
     try:
+        # Start latency timer (includes preprocessing + inference)
+        start_time = time.time()
+
         # Read raw bytes from the uploaded file
         image_bytes = file.file.read()
 
         # Convert raw bytes → PIL Image
-        # This mirrors training-time image decoding
         image = Image.open(io.BytesIO(image_bytes))
 
     except Exception:
-        # Catch-all exception handling ensures that
-        # malformed uploads do not crash the service.
         raise HTTPException(
             status_code=400,
             detail="Unable to read image"
@@ -179,19 +189,19 @@ def predict(file: UploadFile = File(...)):
     # - preprocessing
     # - model forward pass
     # - postprocessing
-    #
-    # All model-specific logic is encapsulated in predict_image,
-    # keeping the API layer clean and maintainable.
     result = predict_image(model, image)
 
-    # Log prediction details for observability.
-    # In real production systems, probabilities may be omitted
-    # for privacy or performance reasons, but are useful here
-    # for debugging and demonstration.
+    # Compute latency in milliseconds
+    latency_ms = (time.time() - start_time) * 1000
+
+    # Log monitoring metrics (M5 requirement)
     logger.info(
-        f"Prediction made | "
+        f"Request #{REQUEST_COUNT} | "
         f"label={result['label']} | "
-        f"probabilities={result['probabilities']}"
+        f"latency={latency_ms:.2f} ms"
     )
+
+    # Add latency to response (useful for demo & debugging)
+    result["latency_ms"] = round(latency_ms, 2)
 
     return result
