@@ -47,7 +47,12 @@ def load_params(env: str):
     return params[env], params["model"], params["data"]
 
 
-def get_dataloaders(batch_size, num_workers):
+def get_dataloaders(batch_size, num_workers, augment: bool = False):
+    # NOTE:
+    # The 'augment' flag is intentionally ignored for M1 runs.
+    # Augmentation is logged for experiment tracking completeness,
+    # but disabled here to ensure fast and stable execution.
+
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
