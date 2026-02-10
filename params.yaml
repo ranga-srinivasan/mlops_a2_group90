@@ -28,7 +28,7 @@ local:
 # ======================================================
 osha:
   batch_size: 32
-  epochs: 1
+  epochs: 3
   learning_rate: 0.0003
   num_workers: 4
   use_augmentation: true

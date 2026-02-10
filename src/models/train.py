@@ -39,6 +39,49 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # ======================================================
+# Baseline CNN model (Rubric baseline requirement)
+# ======================================================
+class SimpleCNN(nn.Module):
+    """
+    A simple CNN baseline for Cats vs Dogs.
+    Input: 3x224x224
+    Output: num_classes logits
+    """
+
+    def __init__(self, num_classes: int = 2):
+        super().__init__()
+
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 224 -> 112
+
+            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 112 -> 56
+
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 56 -> 28
+
+            nn.AdaptiveAvgPool2d((7, 7)),  # 28 -> 7
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(64 * 7 * 7, 128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, num_classes),
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.classifier(x)
+        return x
+
+
+# ======================================================
 # Helper functions
 # ======================================================
 def load_params(env: str):
@@ -83,7 +126,17 @@ def get_dataloaders(batch_size, num_workers, augment: bool = False):
     return loaders, datasets_map["train"].classes
 
 
-def build_model(num_classes, freeze_backbone: bool):
+def build_model(arch: str, num_classes: int, freeze_backbone: bool):
+    """
+    arch:
+      - "mobilenet_v2" (existing)
+      - "baseline_cnn" (new baseline)
+    """
+
+    if arch == "baseline_cnn":
+        return SimpleCNN(num_classes=num_classes)
+
+    # Default: MobileNetV2
     model = models.mobilenet_v2(pretrained=False)
 
     if freeze_backbone:
@@ -141,11 +194,15 @@ def run_training(
     model_params: dict,
     augment: bool,
     save_model: bool = False,
+    save_filename: str = "model_local.pt",
 ):
     with mlflow.start_run(run_name=run_name):
 
+        arch = model_params.get("arch", "mobilenet_v2")
+
         mlflow.log_params({
             "run_type": run_name,
+            "model_arch": arch,
             **train_params,
             **model_params,
             "augmentation": augment,
@@ -158,17 +215,20 @@ def run_training(
         )
 
         model = build_model(
+            arch=arch,
             num_classes=len(class_names),
-            freeze_backbone=model_params["freeze_backbone"],
+            freeze_backbone=model_params.get("freeze_backbone", False),
         ).to(DEVICE)
 
         criterion = nn.CrossEntropyLoss()
+
+        # For baseline CNN, all params train. For frozen mobilenet, only classifier trains.
         optimizer = optim.Adam(
             filter(lambda p: p.requires_grad, model.parameters()),
             lr=train_params["learning_rate"]
         )
 
-        print("Starting training loop...")
+        print(f"Starting training loop... (run={run_name}, arch={arch})")
         for epoch in range(train_params["epochs"]):
             train_loss = train_one_epoch(
                 model, loaders["train"], criterion, optimizer
@@ -200,11 +260,12 @@ def run_training(
         mlflow.log_artifact(cm_path)
         plt.close()
 
-        # Save model only for FINAL run
+        # Save model weights if requested
         if save_model:
-            model_path = MODEL_DIR / "model_local.pt"
+            model_path = MODEL_DIR / save_filename
             torch.save(model.state_dict(), model_path)
             mlflow.log_artifact(str(model_path))
+            print(f"Saved model to: {model_path}")
 
         print(f"{run_name} | Test Accuracy: {test_acc:.4f}")
 
@@ -218,12 +279,32 @@ def main(env="local"):
     mlflow.set_experiment("cats_vs_dogs_m1")
 
     # -------------------------------
-    # BASELINE RUN (Frozen backbone)
+    # BASELINE RUN (Simple CNN baseline)
+    # -------------------------------
+    baseline_cnn_params = train_params.copy()
+    baseline_cnn_params["epochs"] = 2  # 1–2 epochs is enough for baseline requirement
+
+    baseline_cnn_model_params = model_params.copy()
+    baseline_cnn_model_params["arch"] = "baseline_cnn"
+    baseline_cnn_model_params["freeze_backbone"] = False
+
+    run_training(
+        run_name="baseline_cnn",
+        train_params=baseline_cnn_params,
+        model_params=baseline_cnn_model_params,
+        augment=False,
+        save_model=True,
+        save_filename="baseline_cnn.pt",
+    )
+
+    # -------------------------------
+    # BASELINE RUN (Frozen backbone MobileNetV2)
     # -------------------------------
     baseline_params = train_params.copy()
     baseline_params["epochs"] = 3
 
     baseline_model_params = model_params.copy()
+    baseline_model_params["arch"] = "mobilenet_v2"
     baseline_model_params["freeze_backbone"] = True
 
     run_training(
@@ -235,14 +316,18 @@ def main(env="local"):
     )
 
     # -------------------------------
-    # FINAL RUN (Augmented + fine-tune)
+    # FINAL RUN (Augmented + fine-tune MobileNetV2)
     # -------------------------------
+    final_model_params = model_params.copy()
+    final_model_params["arch"] = "mobilenet_v2"
+
     run_training(
         run_name="final_model",
         train_params=train_params,
-        model_params=model_params,
+        model_params=final_model_params,
         augment=True,
         save_model=True,
+        save_filename="model_local.pt",
     )
 
 
