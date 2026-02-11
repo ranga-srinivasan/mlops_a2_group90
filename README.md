@@ -212,12 +212,12 @@ This validates deployed model behavior.
 - GitHub Actions CI/CD workflows
 - Logs and post-deployment evaluation
 - Final report (PDF/DOCX)
-- End-to-end demo video (≤ 5 minutes)
+- [End-to-end demo video (**from Google Drive**)](https://drive.google.com/file/d/1HeFcT734VZ5lUkgfKX_ysCCS2JL974P_/view?usp=drive_link)
 
 ---
 
 ## Repository Link
-https://github.com/ranga-srinivasan/mlops-assignment2-group90
+[Git Repo](https://github.com/ranga-srinivasan/mlops_a2_group90)
 
 ---
 
