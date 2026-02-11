@@ -26,7 +26,7 @@ A complete end-to-end MLOps pipeline is implemented involving dataset versioning
 
 ---
 
-### 2.2 Local Environment Setup (Windows – Model Training)
+### 2.2 Environment Setup
 
 conda create -n mlops_a2_group90 python=3.10 -y  
 conda activate mlops_a2_group90  
